@@ -13,9 +13,9 @@ use Symfony\Component\Filesystem\Path;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Console\Helper\Table;
+use Symfony\Component\Console\Formatter\OutputFormatterStyle;
 
 class SlackCommand extends Command{
-
 
     protected static $defaultName = 'slack';
 
@@ -27,10 +27,12 @@ class SlackCommand extends Command{
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $outputStyle = new OutputFormatterStyle('bright-blue');
+        $output->getFormatter()->setStyle('fun', $outputStyle);
 
         $output->writeln([
-            '====**** SLACK MESSAGE SENDER ****====',
-            '==========================================',
+            '<fun>====**** SLACK MESSAGE SENDER ****====</>',
+            '<fun>==========================================</>',
             '',
         ]);
 
@@ -38,19 +40,18 @@ class SlackCommand extends Command{
         $keepGoing = true;
 
         while ($keepGoing) {
-            $output->writeln([
-                'What would you like to do?',
-                '1. Send a message',
-                '2. List templates',
-                '3. Add a template',
-                '4. Update a template',
-                '5. Delete a template',
-                '6. List users',
-                '7. Add a user',
-                '8. Show sent messages',
-                '9. Exit',
-                ''
-            ]);
+            $output->writeln(['<fun>
+                What would you like to do?,
+                1. Send a message
+                2. List templates
+                3. Add a template
+                4. Update a template
+                5. Delete a template
+                6. List users
+                7. Add a user
+                8. Show sent messages
+                9. Exit
+            </>']);
 
             $helper = $this->getHelper('question');
 
@@ -61,43 +62,43 @@ class SlackCommand extends Command{
 
             switch ($choice) {
                 case "1":
-                    echo "\nSEND A MESSAGE\n\n";
+                    $output->writeln('<fun>SEND A MESSAGE</>');
                     $this->sendMessage($input, $output);
                     break;
                 case "2":
-                    echo "\nLIST TEMPLATES\n\n";
-                    $this->listTemplates();
+                    $output->writeln('<fun>LIST TEMPLATES</>');
+                    $this->listTemplates($input, $output);
                     break;
                 case "3":
-                    echo "\nADD A TEMPLATE\n\n";
+                    $output->writeln('<fun>ADD A TEMPLATE</>');
                     $this->addTemplate($input, $output);
                     break;
                 case "4":
-                    echo "\nUPDATE A TEMPLATE\n\n";
+                    $output->writeln('<fun>UPDATE A TEMPLATE</>');
                     $this->updateTemplate($input, $output);
                     break;
                 case "5":
-                    echo "\nDELETE A TEMPLATE\n\n";
+                    $output->writeln('<fun>DELETE A TEMPLATE</>');
                     $this->deleteTemplate($input, $output);
                     break;
                 case "6":
-                    echo "\nLIST USERS\n\n";
+                    $output->writeln('<fun>LIST USERS</>');
                     $this->listUsers();
                     break;
                 case "7":
-                    echo "\nADD A USER\n\n";
+                    $output->writeln('<fun>ADD A USER</>');
                     $this->addUser($input, $output);
                     break;
                 case "8":
-                    echo "\nSHOW SENT MESSAGES\n\n";
+                    $output->writeln('<fun>SHOW SENT MESSAGES</>');
                     $this->sentMessages($input, $output);
                     break;
                 case "9":
-                    echo "Have a nice day!";
+                    $output->writeln('<fun>Have a nice day!</>');
                     $keepGoing = false;
                     break;
                 default:
-                    echo "\nOPE! You need to select a number silly!\n\n";
+                    $output->writeln('<fun>OPE! You need to select a number silly!');
                     break;
             }
         }
@@ -120,7 +121,7 @@ class SlackCommand extends Command{
 
         $helper = $this->getHelper('question');
 
-        $this->listTemplates();
+        $this->listTemplates($input, $output);
 
         $whichTemplate = new Question("What template? \n", '1');
         $selectedTemplate = $helper->ask($input, $output, $whichTemplate);
@@ -131,7 +132,7 @@ class SlackCommand extends Command{
             }
         }
 
-        $this->listUsers();
+        $this->listUsers($input, $output);
 
         $whichUser = new Question("\n\nWhat user (Please type their name)? \n", 'name');
         $selectedUser = $helper->ask($input, $output, $whichUser);
@@ -167,7 +168,7 @@ class SlackCommand extends Command{
 
         $lastKey = array_key_last($sentMessages);
         $newId = $lastKey + 2;
-        $date = date('d-m-y h:i:s');
+        $date = date("D M d Y H:i:s e");
         $jsonArray = [[
             "id" => strval($newId),
             "message"  => $message,
@@ -185,11 +186,13 @@ class SlackCommand extends Command{
         return Command::SUCCESS;
     }
 
-    private function listTemplates()
+    private function listTemplates(InputInterface $input, OutputInterface $output): int
     {
         $finder = new Finder();
-
         $finder->files()->in(__DIR__)->path('data')->name("templates.json");
+
+        $outputStyle = new OutputFormatterStyle('bright-blue');
+        $output->getFormatter()->setStyle('fun', $outputStyle);
 
         $num = 1;
         if ($finder->hasResults()) {
@@ -197,12 +200,12 @@ class SlackCommand extends Command{
                 $contents = $file->getContents();
                 $templates = json_decode($contents, true);
                 foreach($templates as $e) {
-                    echo strval($num) . "." . $e['message'] . "\n";
+                    $output->writeln( strval($num) . "." . $e['message']);
                     $num++;
                 }
             }
         }
-
+        return Command::SUCCESS;
     }
 
     private function addTemplate(InputInterface $input, OutputInterface $output): int
@@ -212,7 +215,14 @@ class SlackCommand extends Command{
         $jsonString = file_get_contents($path);
         $templates = json_decode($jsonString, true);
 
-        echo "Available variables:\n* {name}\n* {username}\n* {displayName}\n\n";
+        $outputStyle = new OutputFormatterStyle('bright-blue');
+        $output->getFormatter()->setStyle('fun', $outputStyle);
+
+        $output->writeln('<fun>Available variables:</>');
+        $output->writeln('<fun>* {name}</>');
+        $output->writeln('<fun>* {username}</>');
+        $output->writeln('<fun>* {displayName}</>');
+        echo "\n\n";
 
         $helper = $this->getHelper('question');
 
@@ -363,15 +373,14 @@ class SlackCommand extends Command{
         $jsonString = file_get_contents($path);
         $messages = json_decode($jsonString, true);
 
-        var_dump($messages);
         $table = new Table($output);
-        $table->setHeaders(['DATE', 'MESSAGE']);
+        $table->setHeaders(['ID', 'MESSAGE', 'DATE']);
         foreach($messages as $e) {
-            var_dump($e);
-            $table-> setRows([
-                [$e['date'], $e['message']]
-            ]);
-        };
+            $date = $e['date'];
+            $message = $e['message'];
+            //$table-> setRows([ [$date, $message] ]);
+            $table->addRow($e);
+        }
 
         $table->render();
 
