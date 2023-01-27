@@ -12,6 +12,7 @@ use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Filesystem\Path;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
+use Symfony\Component\Console\Helper\Table;
 
 class SlackCommand extends Command{
 
@@ -89,7 +90,7 @@ class SlackCommand extends Command{
                     break;
                 case "8":
                     echo "\nSHOW SENT MESSAGES\n\n";
-                    $this->sentMessages();
+                    $this->sentMessages($input, $output);
                     break;
                 case "9":
                     echo "Have a nice day!";
@@ -108,20 +109,20 @@ class SlackCommand extends Command{
     private function sendMessage(InputInterface $input, OutputInterface $output): int {
 
         $path1 = "./src/data/templates.json";
-        $path2 = "./src/data/users.json";;
+        $path2 = "./src/data/users.json";
+        $path3 = "./src/data/messages.json";
         $jsonString1 = file_get_contents($path1);
         $jsonString2 = file_get_contents($path2);
+        $jsonString3 = file_get_contents($path3);
         $templates = json_decode($jsonString1, true);
         $users = json_decode($jsonString2, true);
+        $sentMessages = json_decode($jsonString3, true);
 
         $helper = $this->getHelper('question');
 
+        $this->listTemplates();
+
         $whichTemplate = new Question("What template? \n", '1');
-        $num = 1;
-        foreach($templates as $e) {
-            echo strval($num) . "." . $e['message'] . "\n";
-            $num++;
-        }
         $selectedTemplate = $helper->ask($input, $output, $whichTemplate);
 
         foreach($templates as &$e) {
@@ -130,14 +131,10 @@ class SlackCommand extends Command{
             }
         }
 
-        $whichUser = new Question("\n\nWhat user (Please type their name)? \n", 'name');
-        $num2 = 1;
-        foreach($users as $e) {
-            echo strval($num2) . "." . $e['name'] . "\n";
-            $num2++;
-        }
-        $selectedUser = $helper->ask($input, $output, $whichUser);
+        $this->listUsers();
 
+        $whichUser = new Question("\n\nWhat user (Please type their name)? \n", 'name');
+        $selectedUser = $helper->ask($input, $output, $whichUser);
 
         foreach($users as &$e) {
             if ($e['name'] === $selectedUser) {
@@ -151,23 +148,39 @@ class SlackCommand extends Command{
         $sendMessage = new Question("Enter 'yes' to send.", 'No');
         $choice = $helper->ask($input, $output, $sendMessage);
 
-        $command =
+        $command = [
             'curl -X POST --data-urlencode 
             \"payload={\"channel\": \"#accelerated-engineer-program\", 
             \"username\": \"yourname\", 
             \"text\": \"textChange.\", 
-            \"icon_emoji\": \":ghost:\"}\"https://hooks.slack.com/services/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';
+            \"icon_emoji\": \":ghost:\"}\"https://hooks.slack.com/services/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'];
         $command = str_replace("yourname", $user, $command);
-        $finalChange = str_replace("textChange", $message, $command);
-        var_dump($finalChange);
+        $finalCommand = str_replace("textChange", $message, $command);
 
-        $process = new Process($command);
+        $process = new Process($finalCommand);
 
         if ($choice === 'yes') {
             $process->run();
         } else {
             echo "You chose not to send the message.";
         }
+
+        $lastKey = array_key_last($sentMessages);
+        $newId = $lastKey + 2;
+        $date = date('d-m-y h:i:s');
+        $jsonArray = [[
+            "id" => strval($newId),
+            "message"  => $message,
+            "date" => $date
+        ]];
+
+        $merge = array_merge($sentMessages, $jsonArray);
+
+        $finalArray = json_encode(array_values($merge), JSON_PRETTY_PRINT);
+
+        $filesystem = new Filesystem();
+        $filesystem->dumpFile($path3, $finalArray);
+
 
         return Command::SUCCESS;
     }
@@ -178,10 +191,15 @@ class SlackCommand extends Command{
 
         $finder->files()->in(__DIR__)->path('data')->name("templates.json");
 
+        $num = 1;
         if ($finder->hasResults()) {
             foreach ($finder as $file) {
                 $contents = $file->getContents();
-                var_dump($contents);
+                $templates = json_decode($contents, true);
+                foreach($templates as $e) {
+                    echo strval($num) . "." . $e['message'] . "\n";
+                    $num++;
+                }
             }
         }
 
@@ -204,12 +222,16 @@ class SlackCommand extends Command{
         $lastKey = array_key_last($templates);
         $newId = $lastKey + 2;
 
-        $jsonArray = json_encode(array(
+        $jsonArray = [[
             "id" => strval($newId),
             "message"  => $newTemplate
-        ));
+        ]];
 
-        $filesystem->appendToFile("./src/data/templates.json", $jsonArray, JSON_PRETTY_PRINT);
+        $merge = array_merge($templates, $jsonArray);
+
+        $finalArray = json_encode(array_values($merge), JSON_PRETTY_PRINT);
+
+        $filesystem->dumpFile($path, $finalArray);
 
         return Command::SUCCESS;
 
@@ -224,7 +246,12 @@ class SlackCommand extends Command{
 
         $helper = $this->getHelper('question');
 
-        $whichTemplate = new Question('Which template would you like to update?', '');
+        $whichTemplate = new Question('Which template would you like to update?', '1');
+        $num = 1;
+        foreach($templates as $e) {
+            echo strval($num) . "." . $e['message'] . "\n";
+            $num++;
+        }
         $selectedTemplate = $helper->ask($input, $output, $whichTemplate);
 
         $helper2 = $this->getHelper('question');
@@ -252,9 +279,12 @@ class SlackCommand extends Command{
 
         $helper = $this->getHelper('question');
 
-        $this->listTemplates();
-
-        $whichTemplate = new Question('Please type the id of the template you want to delete.', "");
+        $whichTemplate = new Question('Please type the id of the template you want to delete.', '1');
+        $num = 1;
+        foreach($templates as $e) {
+            echo strval($num) . "." . $e['message'] . "\n";
+            $num++;
+        }
         $selectedTemplate = $helper->ask($input, $output, $whichTemplate);
 
         foreach($templates as $key => &$value) {
@@ -262,7 +292,6 @@ class SlackCommand extends Command{
                 unset($templates[$key]);
             }
         }
-
 
         $finalArray = json_encode(array_values($templates), JSON_PRETTY_PRINT);
         $filesystem = new Filesystem();
@@ -278,11 +307,16 @@ class SlackCommand extends Command{
 
         $finder->files()->in(__DIR__)->path('data')->name("users.json");
 
+        $num = 1;
         if ($finder->hasResults()) {
             foreach ($finder as $file) {
-                $contents = $file->getContents();
-                var_dump($contents);
-            }
+               $contents = $file->getContents();
+               $users = json_decode($contents, true);
+                    foreach($users as $e) {
+                        echo strval($num) . "." . $e['name'] . "\n";
+                        $num++;
+                    }
+           }
         }
     }
 
@@ -308,31 +342,40 @@ class SlackCommand extends Command{
         echo "\n";
         $displayName = $helper->ask($input, $output, $question4);
 
-        $jsonArray = json_encode(array(
+        $jsonArray = [[
             "name" => $name,
             "userID"  => $userID,
             "username" => $username,
             "displayName" => $displayName
-        ));
+        ]];
 
-        $filesystem->appendToFile($path, $jsonArray, JSON_PRETTY_PRINT);
+        $merge = array_merge($users, $jsonArray);
+        $finalArray = json_encode(array_values($merge), JSON_PRETTY_PRINT);
+        $filesystem->dumpFile($path, $finalArray);
 
         return Command::SUCCESS;
     }
 
 
-    private function sentMessages()
+    private function sentMessages(InputInterface $input, OutputInterface $output): int
     {
-        $finder = new Finder();
+        $path = "./src/data/messages.json";
+        $jsonString = file_get_contents($path);
+        $messages = json_decode($jsonString, true);
 
-        $finder->files()->in(__DIR__)->path('data')->name("messages.json");
+        var_dump($messages);
+        $table = new Table($output);
+        $table->setHeaders(['DATE', 'MESSAGE']);
+        foreach($messages as $e) {
+            var_dump($e);
+            $table-> setRows([
+                [$e['date'], $e['message']]
+            ]);
+        };
 
-        if ($finder->hasResults()) {
-            foreach ($finder as $file) {
-                $contents = $file->getContents();
-                var_dump($contents);
-            }
-        }
+        $table->render();
+
+        return Command::SUCCESS;
 
     }
 
