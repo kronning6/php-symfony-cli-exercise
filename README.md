@@ -8,9 +8,11 @@ This project provides a starter CLI to complete exercises to practice coding in 
 2. Clone your new repo and open it in PhpStorm
 3. For this exercise, you'll run Docker from within PhpStorm. To do this, see the instructions below
 4. With your Docker container running execute `./cli.sh help`. You'll see an example command that can be run
-5. Run `./cli.sh echo:name`
-6. Create your own commands in the [src/](src) folder
-7. Make sure to run `docker exec -it php-cli-exercise composer install` after adding a new command
+5. Add a new file, `.env.local` to the root of your project and add `SLACK_WEBHOOK_URL=''` to the file. You will populate 
+that later on
+6. Run `./cli.sh echo:name`
+7. Create your own commands in the [src/](src) folder
+8. Make sure to run `docker exec -it php-cli-exercise composer install` after adding a new command
 
 ---
 ## Instructions on setting up Docker in PhpStorm
